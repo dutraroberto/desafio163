@@ -11,6 +11,7 @@
 #ifdef _OPENMP
 #include <omp.h>
 #endif
+#include "gpu_key_finder.cuh"
 
 class KeyFinder {
 public:
@@ -53,8 +54,13 @@ private:
     std::array<std::string, 256> hexLookup_;
     std::mutex checkpointMutex_;
 
+    GPUKeyFinder gpuFinder_;
+    bool useGPU_;
+
     static constexpr size_t BATCH_SIZE = 1000;
     static constexpr uint64_t REPORT_INTERVAL = 10000;
     static constexpr uint64_t CHECKPOINT_INTERVAL = 1000000;
     static constexpr char HEX_CHARS[] = "0123456789ABCDEF";
+    static const int GPU_BLOCK_SIZE = 256;
+    static const int GPU_NUM_BLOCKS = 1024;
 };

@@ -52,7 +52,8 @@ KeyFinder::KeyFinder(const std::string& targetAddress, const std::string& partia
     , startTime_(std::chrono::steady_clock::now())
     , startTimeStr_(getTimestamp(false))  // Armazena o horário de início
     , peakSpeed_(0)
-    , checkpointFile_("checkpoint.dat") {
+    , checkpointFile_("checkpoint.dat")
+    , useGPU_(true) {
     
     // Inicializar posições dos X's
     for (size_t i = 0; i < partialKey_.length(); i++) {
@@ -316,5 +317,54 @@ bool KeyFinder::validateKey(const std::string& candidateKey) {
         // Em caso de erro na conversão ou geração do endereço
         std::cerr << "Erro ao validar chave: " << e.what() << std::endl;
         return false;
+    }
+}
+
+bool KeyFinder::initialize(const std::string& targetAddress, const std::string& partialKey, int numThreads) {
+    targetAddress_ = targetAddress;
+    partialKey_ = partialKey;
+    numThreads_ = numThreads;
+
+    // Inicializar GPU se disponível
+    if (useGPU_) {
+        if (!gpuFinder_.initialize()) {
+            std::cout << "Aviso: Falha ao inicializar GPU. Usando apenas CPU.\n";
+            useGPU_ = false;
+        } else {
+            gpuFinder_.setBlockSize(GPU_BLOCK_SIZE);
+            gpuFinder_.setNumBlocks(GPU_NUM_BLOCKS);
+            std::cout << "GPU inicializada com sucesso.\n";
+        }
+    }
+
+    return true;
+}
+
+void KeyFinder::searchThread(int threadId) {
+    std::vector<std::string> keyBatch;
+    keyBatch.reserve(BATCH_SIZE);
+
+    while (running_) {
+        // Gerar lote de chaves
+        keyBatch.clear();
+        for (size_t i = 0; i < BATCH_SIZE; i++) {
+            // TODO: Implementar geração de chaves
+            keyBatch.push_back("chave_teste");
+        }
+
+        // Processar lote na GPU se disponível
+        if (useGPU_) {
+            if (gpuFinder_.processKeyBatch(keyBatch, targetAddress_)) {
+                std::string foundKey = gpuFinder_.getFoundKey();
+                foundKey(foundKey, targetAddress_);
+                break;
+            }
+        } else {
+            // Processamento CPU existente
+            // TODO: Manter código CPU atual
+        }
+
+        // Atualizar contador
+        testsCount_.fetch_add(keyBatch.size(), std::memory_order_relaxed);
     }
 }
