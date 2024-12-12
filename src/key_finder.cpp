@@ -32,7 +32,8 @@ KeyFinder::KeyFinder(const std::string& targetAddress, const std::string& partia
     , running_(false)
     , paused_(false)
     , testsCount_(0)
-    , lastTestsCount_(0) {
+    , lastTestsCount_(0)
+    , lastUpdate_(std::chrono::steady_clock::now()) {
 }
 
 void KeyFinder::start(size_t threadCount) {
@@ -42,6 +43,7 @@ void KeyFinder::start(size_t threadCount) {
     paused_ = false;
     testsCount_ = 0;
     lastTestsCount_ = 0;
+    lastUpdate_ = std::chrono::steady_clock::now();
 
     std::cout << "Iniciando busca com " << threadCount << " threads...\n";
     std::cout << "Procurando chave para o endereco: " << targetAddress_ << "\n";
@@ -77,7 +79,10 @@ bool KeyFinder::isRunning() const {
 }
 
 uint64_t KeyFinder::getTestsPerSecond() const {
-    return testsCount_ - lastTestsCount_;
+    auto now = std::chrono::steady_clock::now();
+    auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastUpdate_).count();
+    if (elapsed == 0) return 0;
+    return (testsCount_.load() - lastTestsCount_.load()) / elapsed;
 }
 
 void KeyFinder::workerThread(size_t threadId) {
@@ -99,12 +104,11 @@ void KeyFinder::workerThread(size_t threadId) {
 
     const char* hexChars = "0123456789abcdef";
     
-    std::cout << "Thread " << threadId << " iniciando...\n";
-    std::cout << "  Combinacoes: " << start << " ate " << end << "\n";
-    std::cout << "  Total: " << (end - start) << " combinacoes\n\n";
-    
     uint64_t lastReport = 0;
     const uint64_t reportInterval = 1000000; // Reportar a cada 1 milhão de tentativas
+    
+    // Contador local para a thread
+    uint64_t localTestsCount = 0;
     
     for (uint64_t i = start; i < end && running_; i++) {
         while (paused_ && running_) {
@@ -125,19 +129,24 @@ void KeyFinder::workerThread(size_t threadId) {
         }
         
         // Mostrar progresso a cada reportInterval tentativas
-        if (i - lastReport >= reportInterval) {
-            double progress = static_cast<double>(i - start) / (end - start) * 100.0;
-            std::cout << "Thread " << threadId << ": " 
-                     << (i - start) << "/" << (end - start) 
-                     << " (" << std::fixed << std::setprecision(2) << progress << "%)"
-                     << " - Testando: " << candidateKey << "\r" << std::flush;
-            lastReport = i;
+        if (localTestsCount % reportInterval == 0) {
+            uint64_t keysPerSecond = getTestsPerSecond();
+            std::cout << "Testando... Velocidade: " << keysPerSecond << " chaves/s\r" << std::flush;
+            lastTestsCount_ = testsCount_.load();
+            lastUpdate_ = std::chrono::steady_clock::now();
         }
         
+        // Atualizar contagem de testes global
+        testsCount_++;
+        localTestsCount++;
+
         if (validateKey(candidateKey)) {
+            auto endTime = std::chrono::steady_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::seconds>(endTime - lastUpdate_).count();
+            uint64_t totalKeysTested = testsCount_.load();
+            uint64_t averageKeysPerSecond = totalKeysTested / duration;
             std::cout << "\n==========================================\n";
             std::cout << "CHAVE ENCONTRADA!\n";
-            std::cout << "==========================================\n";
             
             // Converter para WIF
             auto bytes = BitcoinUtils::hexStringToBytes(candidateKey);
@@ -148,6 +157,9 @@ void KeyFinder::workerThread(size_t threadId) {
             std::cout << "Chave privada (HEX): " << candidateKey << "\n";
             std::cout << "Chave privada (WIF): " << wif << "\n";
             std::cout << "Endereco Bitcoin: " << address << "\n";
+            std::cout << "Tempo total: " << duration << " segundos\n";
+            std::cout << "Total de chaves testadas: " << totalKeysTested << "\n";
+            std::cout << "Média de chaves testadas por segundo: " << averageKeysPerSecond << "\n";
             std::cout << "==========================================\n";
             
             // Criar diretório results se não existir
@@ -163,6 +175,9 @@ void KeyFinder::workerThread(size_t threadId) {
             outFile << "Chave privada (HEX): " << candidateKey << "\n";
             outFile << "Chave privada (WIF): " << wif << "\n";
             outFile << "Endereco Bitcoin: " << address << "\n\n";
+            outFile << "Tempo total: " << duration << " segundos\n";
+            outFile << "Total de chaves testadas: " << totalKeysTested << "\n";
+            outFile << "Média de chaves testadas por segundo: " << averageKeysPerSecond << "\n";
             outFile << "Detalhes da busca:\n";
             outFile << "- Chave parcial usada: " << partialKey_ << "\n";
             outFile << "- Endereco alvo: " << targetAddress_ << "\n";
@@ -183,8 +198,6 @@ void KeyFinder::workerThread(size_t threadId) {
             stop();
             break;
         }
-
-        testsCount_++;
     }
     
     // Limpar a linha do progresso ao finalizar
@@ -207,12 +220,6 @@ bool KeyFinder::validateKey(const std::string& candidateKey) {
         
         // Comparar com o endereço alvo
         bool found = (generatedAddress == targetAddress_);
-        
-        if (found) {
-            std::cout << "\n!!! CHAVE ENCONTRADA !!!\n";
-            std::cout << "Chave privada: " << candidateKey << "\n";
-            std::cout << "Endereco Bitcoin: " << generatedAddress << "\n\n";
-        }
         
         return found;
     } catch (const std::exception& e) {

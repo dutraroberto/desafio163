@@ -3,7 +3,10 @@
 #include <string>
 #include <vector>
 #include <thread>
+#include <mutex>
+#include <condition_variable>
 #include <atomic>
+#include <chrono>
 
 class KeyFinder {
 public:
@@ -28,4 +31,5 @@ private:
     std::atomic<bool> paused_;
     std::atomic<uint64_t> testsCount_;
     std::atomic<uint64_t> lastTestsCount_;
+    std::chrono::steady_clock::time_point lastUpdate_;
 };
