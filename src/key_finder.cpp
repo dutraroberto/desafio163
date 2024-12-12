@@ -1,14 +1,36 @@
+#define _CRT_SECURE_NO_WARNINGS
 #include "key_finder.h"
 #include "bitcoin_utils.h"
 #include <iostream>
 #include <fstream>
 #include <chrono>
 #include <vector>
+#include <algorithm>
+#include <iomanip>
+#include <cmath>
+#include <filesystem>
+#include <ctime>
+
+// Função auxiliar para formatar data/hora
+std::string getTimestamp(bool isFileName = false) {
+    time_t now = time(nullptr);
+    struct tm timeinfo;
+    localtime_s(&timeinfo, &now);
+    
+    char buffer[80];
+    if (isFileName) {
+        strftime(buffer, sizeof(buffer), "%Y%m%d_%H%M%S", &timeinfo);
+    } else {
+        strftime(buffer, sizeof(buffer), "%Y-%m-%d %H:%M:%S", &timeinfo);
+    }
+    return std::string(buffer);
+}
 
 KeyFinder::KeyFinder(const std::string& targetAddress, const std::string& partialKey)
     : targetAddress_(targetAddress)
     , partialKey_(partialKey)
     , running_(false)
+    , paused_(false)
     , testsCount_(0)
     , lastTestsCount_(0) {
 }
@@ -17,8 +39,13 @@ void KeyFinder::start(size_t threadCount) {
     if (running_) return;
     
     running_ = true;
+    paused_ = false;
     testsCount_ = 0;
     lastTestsCount_ = 0;
+
+    std::cout << "Iniciando busca com " << threadCount << " threads...\n";
+    std::cout << "Procurando chave para o endereco: " << targetAddress_ << "\n";
+    std::cout << "Chave parcial: " << partialKey_ << "\n\n";
 
     // Iniciar threads
     for (size_t i = 0; i < threadCount; ++i) {
@@ -28,12 +55,21 @@ void KeyFinder::start(size_t threadCount) {
 
 void KeyFinder::stop() {
     running_ = false;
+    paused_ = false;
     for (auto& thread : threads_) {
         if (thread.joinable()) {
             thread.join();
         }
     }
     threads_.clear();
+}
+
+void KeyFinder::pause() {
+    paused_ = true;
+}
+
+void KeyFinder::resume() {
+    paused_ = false;
 }
 
 bool KeyFinder::isRunning() const {
@@ -45,82 +81,136 @@ uint64_t KeyFinder::getTestsPerSecond() const {
 }
 
 void KeyFinder::workerThread(size_t threadId) {
-    uint64_t startIndex = threadId;
-    uint64_t step = threads_.size();
+    // Encontrar posições dos X's
+    std::vector<size_t> xPositions;
+    for (size_t i = 0; i < partialKey_.length(); i++) {
+        if (partialKey_[i] == 'x' || partialKey_[i] == 'X') {
+            xPositions.push_back(i);
+        }
+    }
+    
+    // Calcular número total de combinações
+    uint64_t totalCombinations = static_cast<uint64_t>(std::pow(16, xPositions.size()));
+    
+    // Distribuir o trabalho entre as threads
+    uint64_t combinationsPerThread = totalCombinations / threads_.size();
+    uint64_t start = threadId * combinationsPerThread;
+    uint64_t end = (threadId == threads_.size() - 1) ? totalCombinations : (threadId + 1) * combinationsPerThread;
 
-    while (running_) {
-        std::string candidateKey = generateCandidateKey(startIndex);
+    const char* hexChars = "0123456789abcdef";
+    
+    std::cout << "Thread " << threadId << " iniciando...\n";
+    std::cout << "  Combinacoes: " << start << " ate " << end << "\n";
+    std::cout << "  Total: " << (end - start) << " combinacoes\n\n";
+    
+    for (uint64_t i = start; i < end && running_; i++) {
+        while (paused_ && running_) {
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        
+        if (!running_) break;
+
+        // Gerar candidato
+        std::string candidateKey = partialKey_;
+        uint64_t value = i;
+        
+        // Preencher cada posição X com um dígito hexadecimal
+        for (size_t pos = 0; pos < xPositions.size(); pos++) {
+            int digit = value & 0xF;
+            candidateKey[xPositions[pos]] = hexChars[digit];
+            value >>= 4;
+        }
+        
         if (validateKey(candidateKey)) {
-            std::cout << "\nChave encontrada: " << candidateKey << std::endl;
+            std::cout << "\n==========================================\n";
+            std::cout << "CHAVE ENCONTRADA!\n";
+            std::cout << "==========================================\n";
             
-            // Converter para WIF e salvar
+            // Converter para WIF
             auto bytes = BitcoinUtils::hexStringToBytes(candidateKey);
             std::string wif = BitcoinUtils::privateKeyToWIF(bytes);
+            std::string address = BitcoinUtils::privateKeyToAddress(bytes);
             
-            std::ofstream outFile("chave_encontrada.txt");
-            outFile << "Chave privada (hex): " << candidateKey << std::endl;
-            outFile << "Chave privada (WIF): " << wif << std::endl;
+            // Exibir resultados
+            std::cout << "Chave privada (HEX): " << candidateKey << "\n";
+            std::cout << "Chave privada (WIF): " << wif << "\n";
+            std::cout << "Endereco Bitcoin: " << address << "\n";
+            std::cout << "==========================================\n";
+            
+            // Criar diretório results se não existir
+            std::filesystem::create_directories("results");
+            
+            // Gerar nome do arquivo com timestamp
+            std::string filename = "results/chave_encontrada_" + getTimestamp(true) + ".txt";
+            
+            // Salvar em arquivo
+            std::ofstream outFile(filename);
+            outFile << "=== Chave Bitcoin Encontrada ===\n\n";
+            outFile << "Data/Hora: " << getTimestamp() << "\n\n";
+            outFile << "Chave privada (HEX): " << candidateKey << "\n";
+            outFile << "Chave privada (WIF): " << wif << "\n";
+            outFile << "Endereco Bitcoin: " << address << "\n\n";
+            outFile << "Detalhes da busca:\n";
+            outFile << "- Chave parcial usada: " << partialKey_ << "\n";
+            outFile << "- Endereco alvo: " << targetAddress_ << "\n";
+            outFile << "- Numero de threads: " << threads_.size() << "\n\n";
+            outFile << "==========================================\n\n";
+            outFile << "Parabens pela sua conquista!\n";
+            outFile << "Considere fazer uma pequena doacao para o desenvolvedor da ferramenta:\n\n";
+            outFile << "Endereco BTC: bc1q3g8s6wh7s8zf4jz32msu2hl3wu9y4rt9nfrzgu\n\n";
+            outFile << "Sua doacao ajuda a manter o desenvolvimento de ferramentas uteis como esta.\n";
+            outFile << "Muito obrigado pelo seu apoio!\n\n";
+            outFile << "==========================================\n";
             outFile.close();
+            
+            std::cout << "\nChave salva em: " << filename << "\n";
+            std::cout << "Pressione Enter para continuar...";
+            std::cin.get();
 
             stop();
             break;
         }
 
         testsCount_++;
-        startIndex += step;
     }
+    
+    std::cout << "Thread " << threadId << " finalizada.\n";
 }
 
 bool KeyFinder::validateKey(const std::string& candidateKey) {
     try {
-        auto bytes = BitcoinUtils::hexStringToBytes(candidateKey);
-        std::string address = BitcoinUtils::privateKeyToAddress(bytes);
+        // Converter a chave para bytes
+        auto privateKeyBytes = BitcoinUtils::hexStringToBytes(candidateKey);
         
-        if (address == targetAddress_) {
-            std::cout << "\nChave válida encontrada!" << std::endl;
-            std::cout << "Chave privada: " << candidateKey << std::endl;
-            std::cout << "Endereço: " << address << std::endl;
-            return true;
+        // Verificar se o tamanho está correto (32 bytes)
+        if (privateKeyBytes.size() != 32) {
+            std::cout << "Tamanho invalido: " << privateKeyBytes.size() << " bytes\n";
+            return false;
         }
+        
+        // Gerar o endereço Bitcoin
+        std::string generatedAddress = BitcoinUtils::privateKeyToAddress(privateKeyBytes);
+        
+        // Debug: sempre imprimir o endereço gerado para a chave
+        std::cout << "Testando:\n";
+        std::cout << "  Chave: " << candidateKey << "\n";
+        std::cout << "  Endereco gerado: " << generatedAddress << "\n";
+        std::cout << "  Endereco alvo:   " << targetAddress_ << "\n";
+        std::cout << "  Resultado: " << (generatedAddress == targetAddress_ ? "IGUAL" : "DIFERENTE") << "\n\n";
+        
+        // Comparar com o endereço alvo
+        bool found = (generatedAddress == targetAddress_);
+        
+        if (found) {
+            std::cout << "\n!!! CHAVE ENCONTRADA !!!\n";
+            std::cout << "Chave privada: " << candidateKey << "\n";
+            std::cout << "Endereco Bitcoin: " << generatedAddress << "\n\n";
+        }
+        
+        return found;
     } catch (const std::exception& e) {
-        // Ignora chaves inválidas silenciosamente
+        std::cout << "Erro ao validar chave: " << e.what() << "\n";
+        std::cout << "Chave tentada: " << candidateKey << "\n\n";
+        return false;
     }
-    return false;
-}
-
-std::string KeyFinder::generateCandidateKey(uint64_t index) {
-    std::string key = partialKey_;
-    size_t xCount = 0;
-    
-    // Conta o número de 'x' na chave parcial
-    for (char c : key) {
-        if (c == 'x') xCount++;
-    }
-    
-    // Gera uma sequência de dígitos hexadecimais baseada no índice
-    std::vector<char> hexDigits;
-    uint64_t remainingIndex = index;
-    
-    for (size_t i = 0; i < xCount; i++) {
-        int digit = remainingIndex & 0xF;
-        remainingIndex >>= 4;
-        
-        char hexChar;
-        if (digit < 10) {
-            hexChar = '0' + digit;
-        } else {
-            hexChar = 'a' + (digit - 10);
-        }
-        hexDigits.push_back(hexChar);
-    }
-    
-    // Substitui os 'x' pelos dígitos gerados
-    size_t digitIndex = 0;
-    for (size_t i = 0; i < key.length() && digitIndex < hexDigits.size(); i++) {
-        if (key[i] == 'x') {
-            key[i] = hexDigits[digitIndex++];
-        }
-    }
-    
-    return key;
 }

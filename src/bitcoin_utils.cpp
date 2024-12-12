@@ -5,6 +5,7 @@
 #include <openssl/obj_mac.h>
 #include <sstream>
 #include <iomanip>
+#include <iostream>
 
 class ECCCache {
 public:
@@ -93,7 +94,7 @@ std::string BitcoinUtils::privateKeyToAddress(const std::vector<uint8_t>& privat
         throw std::runtime_error("Failed to create public key point");
     }
 
-    // Usar contexto thread-local para melhor performance
+    // Gerar chave pública
     if (!EC_POINT_mul(ECCCache::getGroup(), pub_key, bn, nullptr, nullptr, ECCCache::getBnCtx())) {
         EC_POINT_free(pub_key);
         BN_free(bn);
@@ -101,13 +102,11 @@ std::string BitcoinUtils::privateKeyToAddress(const std::vector<uint8_t>& privat
         throw std::runtime_error("Failed to compute public key");
     }
 
-    EC_KEY_set_public_key(eckey, pub_key);
-
-    // Obter chave pública em formato comprimido
-    size_t pub_len = EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_COMPRESSED,
+    // Obter chave pública em formato não comprimido
+    size_t pub_len = EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_UNCOMPRESSED,
                                       nullptr, 0, ECCCache::getBnCtx());
     std::vector<uint8_t> pub_key_bytes(pub_len);
-    EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_COMPRESSED,
+    EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_UNCOMPRESSED,
                       pub_key_bytes.data(), pub_len, ECCCache::getBnCtx());
 
     // Limpar recursos
@@ -115,48 +114,42 @@ std::string BitcoinUtils::privateKeyToAddress(const std::vector<uint8_t>& privat
     BN_free(bn);
     EC_KEY_free(eckey);
 
-    // Cache para hash SHA256
-    static thread_local SHA256_CTX sha256_ctx;
-    std::vector<uint8_t> sha256_hash(SHA256_DIGEST_LENGTH);
+    // Hash SHA256
+    std::vector<uint8_t> sha256_hash = sha256(pub_key_bytes);
     
-    SHA256_Init(&sha256_ctx);
-    SHA256_Update(&sha256_ctx, pub_key_bytes.data(), pub_key_bytes.size());
-    SHA256_Final(sha256_hash.data(), &sha256_ctx);
+    // Hash RIPEMD160
+    std::vector<uint8_t> ripemd160_hash = ripemd160(sha256_hash);
 
-    // Cache para hash RIPEMD160
-    static thread_local RIPEMD160_CTX ripemd160_ctx;
-    std::vector<uint8_t> ripemd160_hash(RIPEMD160_DIGEST_LENGTH);
-    
-    RIPEMD160_Init(&ripemd160_ctx);
-    RIPEMD160_Update(&ripemd160_ctx, sha256_hash.data(), sha256_hash.size());
-    RIPEMD160_Final(ripemd160_hash.data(), &ripemd160_ctx);
-
-    // Versão e checksum
+    // Adicionar versão
     std::vector<uint8_t> versioned_hash;
-    versioned_hash.reserve(25); // 1 byte version + 20 bytes hash + 4 bytes checksum
+    versioned_hash.reserve(21); // 1 byte version + 20 bytes hash
     versioned_hash.push_back(0x00); // Mainnet
     versioned_hash.insert(versioned_hash.end(), ripemd160_hash.begin(), ripemd160_hash.end());
 
     // Double SHA256 para checksum
-    SHA256_Init(&sha256_ctx);
-    SHA256_Update(&sha256_ctx, versioned_hash.data(), versioned_hash.size());
-    SHA256_Final(sha256_hash.data(), &sha256_ctx);
+    std::vector<uint8_t> checksum = sha256(sha256(versioned_hash));
+    
+    // Adicionar os primeiros 4 bytes do checksum
+    versioned_hash.insert(versioned_hash.end(), checksum.begin(), checksum.begin() + 4);
 
-    SHA256_Init(&sha256_ctx);
-    SHA256_Update(&sha256_ctx, sha256_hash.data(), sha256_hash.size());
-    SHA256_Final(sha256_hash.data(), &sha256_ctx);
-
-    versioned_hash.insert(versioned_hash.end(), sha256_hash.begin(), sha256_hash.begin() + 4);
-
+    // Converter para Base58
     return base58Encode(versioned_hash);
 }
 
 std::vector<uint8_t> BitcoinUtils::hexStringToBytes(const std::string& hex) {
     std::vector<uint8_t> bytes;
-    for (size_t i = 0; i < hex.length(); i += 2) {
-        std::string byteString = hex.substr(i, 2);
-        uint8_t byte = static_cast<uint8_t>(std::stoi(byteString, nullptr, 16));
-        bytes.push_back(byte);
+    bytes.reserve(hex.length() / 2);
+    
+    try {
+        for (size_t i = 0; i < hex.length(); i += 2) {
+            std::string byteString = hex.substr(i, 2);
+            uint8_t byte = static_cast<uint8_t>(std::stoi(byteString, nullptr, 16));
+            bytes.push_back(byte);
+        }
+    } catch (const std::exception& e) {
+        std::cout << "Erro ao converter hex para bytes: " << e.what() << std::endl;
+        std::cout << "String hex: " << hex << std::endl;
+        throw;
     }
     return bytes;
 }
