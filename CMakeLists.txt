@@ -4,6 +4,23 @@ project(Desafio163)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
+# Habilitar OpenMP
+find_package(OpenMP)
+if(OpenMP_CXX_FOUND)
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} ${OpenMP_CXX_FLAGS}")
+endif()
+
+# Force UTF-8 encoding for MSVC
+if(MSVC)
+    add_compile_options(/utf-8)
+    # Adicionar /EHsc para manipulação de exceções
+    set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} /EHsc")
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /O2 /Ob2 /Oi /Ot /GL /arch:AVX2 /fp:fast /Qpar")
+    set(CMAKE_EXE_LINKER_FLAGS_RELEASE "${CMAKE_EXE_LINKER_FLAGS_RELEASE} /LTCG")
+else()
+    set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} -O3 -march=native -ffast-math")
+endif()
+
 # Configuração do OpenSSL
 if(WIN32)
     # Caminhos específicos do OpenSSL
@@ -46,4 +63,5 @@ target_include_directories(Desafio163 PRIVATE
 target_link_libraries(Desafio163 PRIVATE 
     OpenSSL::SSL 
     OpenSSL::Crypto
+    $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>
 )

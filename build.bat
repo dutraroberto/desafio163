@@ -28,7 +28,7 @@ if not exist build mkdir build
 cd build
 
 echo Configurando CMake...
-cmake .. -A x64
+cmake .. -A x64 -DCMAKE_CXX_FLAGS="/O2 /openmp /arch:AVX2 /fp:fast /GL /Qpar"
 
 if errorlevel 1 (
     echo Error: Falha ao executar o CMake!

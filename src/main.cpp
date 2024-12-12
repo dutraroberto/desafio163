@@ -5,6 +5,7 @@
 #include <string>
 #include <limits>
 #include <conio.h>
+#include <Windows.h>
 
 void clearInputBuffer() {
     std::cin.clear();
@@ -18,7 +19,7 @@ std::string getValidInput(const std::string& prompt, bool allowEmpty = false) {
         std::getline(std::cin, input);
         
         if (!allowEmpty && input.empty()) {
-            std::cout << "Erro: Este campo nao pode estar vazio. Por favor, tente novamente.\n";
+            std::cout << "Error: This field cannot be empty. Please try again.\n";
             continue;
         }
         return input;
@@ -30,8 +31,8 @@ int getThreadCount() {
     int threads;
     
     while (true) {
-        std::cout << "Numero de nucleos disponiveis: " << maxThreads << "\n";
-        std::cout << "Digite o numero de nucleos a utilizar (1-" << maxThreads << "): ";
+        std::cout << "Number of available cores: " << maxThreads << "\n";
+        std::cout << "Enter the number of cores to use (1-" << maxThreads << "): ";
         
         if (std::cin >> threads) {
             if (threads >= 1 && threads <= maxThreads) {
@@ -40,101 +41,79 @@ int getThreadCount() {
             }
         }
         
-        std::cout << "Erro: Por favor, digite um numero entre 1 e " << maxThreads << "\n";
+        std::cout << "Error: Please enter a number between 1 and " << maxThreads << "\n";
         clearInputBuffer();
     }
 }
 
 void displayCommands() {
-    std::cout << "\n------------------------------------------\n";
-    std::cout << "Comandos disponiveis:\n";
-    std::cout << "P - Pausar/Continuar\n";
-    std::cout << "Q - Sair\n";
-    std::cout << "------------------------------------------\n\n";
+    std::cout << "Commands available:\n";
+    std::cout << "P - Pause/Resume search\n";
+    std::cout << "Q - Quit program\n\n";
 }
 
 void displayProgress(KeyFinder& finder) {
-    auto startTime = std::chrono::steady_clock::now();
-    uint64_t lastCount = 0;
-    uint64_t peakSpeed = 0;
-    bool isPaused = false;
-
     displayCommands();
-
+    
     while (finder.isRunning()) {
-        // Verifica se há tecla pressionada
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        
         if (_kbhit()) {
-            char key = toupper(_getch());
-            if (key == 'P') {
-                isPaused = !isPaused;
-                if (isPaused) {
-                    std::cout << "\n[PAUSADO] Pressione 'P' para continuar ou 'Q' para sair\n";
-                    finder.pause();
-                } else {
-                    std::cout << "\n[CONTINUANDO] Busca em andamento...\n";
-                    finder.resume();
-                }
-            }
-            else if (key == 'Q') {
-                std::cout << "\nFinalizando busca...\n";
+            char c = _getch();
+            if (c == 'q' || c == 'Q') {
+                std::cout << "\nStopping search..." << std::endl;
                 finder.stop();
                 break;
             }
-        }
-
-        if (!isPaused) {
-            std::this_thread::sleep_for(std::chrono::seconds(1));
-            
-            auto currentTime = std::chrono::steady_clock::now();
-            auto elapsedSeconds = std::chrono::duration_cast<std::chrono::seconds>(currentTime - startTime).count();
-            
-            uint64_t currentSpeed = finder.getTestsPerSecond();
-            peakSpeed = std::max(peakSpeed, currentSpeed);
-
-            std::cout << "\rVelocidade: " << currentSpeed << " testes/s"
-                      << " | Pico: " << peakSpeed << " testes/s"
-                      << " | Tempo: " << elapsedSeconds << "s";
-            std::cout.flush();
-        }
-        else {
-            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+            else if (c == 'p' || c == 'P') {
+                if (finder.isPaused()) {
+                    finder.resume();
+                    std::cout << "\nSearch resumed." << std::endl;
+                }
+                else {
+                    finder.pause();
+                    std::cout << "\nSearch paused." << std::endl;
+                }
+            }
         }
     }
-    std::cout << std::endl;
+    std::cout << "\nSearch finished." << std::endl;
 }
 
 int main() {
-    std::cout << "=== Desafio163 - Bitcoin Private Key Recovery Tool ===\n\n";
-
-    // Obter endereco Bitcoin
-    std::string address = getValidInput("Digite o endereco Bitcoin alvo: ");
-    if (address.empty()) {
-        std::cout << "Erro: O endereco Bitcoin e obrigatorio.\n";
-        return 1;
+    SetConsoleOutputCP(CP_UTF8);
+    
+    std::cout << "Bitcoin Private Key Finder\n";
+    std::cout << "=========================\n\n";
+    
+    std::string address, partialKey;
+    int threadCount;
+    
+    std::cout << "Target Bitcoin Address: ";
+    std::getline(std::cin, address);
+    
+    std::cout << "Partial Private Key (use 'x' for unknown positions): ";
+    std::getline(std::cin, partialKey);
+    
+    std::cout << "Number of threads to use: ";
+    std::cin >> threadCount;
+    
+    if (threadCount <= 0) {
+        threadCount = std::thread::hardware_concurrency();
     }
-
-    // Obter chave parcial
-    std::string partialKey = getValidInput("Digite a chave parcial (use 'x' para digitos desconhecidos): ");
-    if (partialKey.empty()) {
-        std::cout << "Erro: A chave parcial e obrigatoria.\n";
-        return 1;
-    }
-
-    // Obter número de threads
-    int threadCount = getThreadCount();
-
-    std::cout << "\nIniciando busca com os seguintes parametros:\n";
-    std::cout << "Endereco Bitcoin: " << address << "\n";
-    std::cout << "Chave Parcial: " << partialKey << "\n";
-    std::cout << "Nucleos: " << threadCount << "\n\n";
-
+    
+    std::cout << "\nStarting search with parameters:\n";
+    std::cout << "Address: " << address << "\n";
+    std::cout << "Key Pattern: " << partialKey << "\n";
+    std::cout << "Threads: " << threadCount << "\n\n";
+    
     try {
-        KeyFinder finder(address, partialKey);
-        finder.start(threadCount);
+        KeyFinder finder(address, partialKey, threadCount);
+        finder.start();
         displayProgress(finder);
     }
     catch (const std::exception& e) {
-        std::cout << "\nErro: " << e.what() << std::endl;
+        std::cout << "\nError: " << e.what() << std::endl;
         return 1;
     }
 
