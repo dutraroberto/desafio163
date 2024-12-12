@@ -1,6 +1,7 @@
 #include "key_finder.h"
 #include "bitcoin_utils.h"
 #include <iostream>
+#include <fstream>
 #include <chrono>
 #include <vector>
 

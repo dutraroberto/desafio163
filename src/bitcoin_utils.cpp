@@ -2,6 +2,7 @@
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
 #include <openssl/ec.h>
+#include <openssl/obj_mac.h>
 #include <sstream>
 #include <iomanip>
 

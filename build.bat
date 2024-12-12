@@ -23,25 +23,22 @@ if not exist "%VS_PATH%\Common7\Tools\VsDevCmd.bat" (
 echo Configurando ambiente do Visual Studio...
 call "%VS_PATH%\Common7\Tools\VsDevCmd.bat"
 
-REM Procurar o CMake do Visual Studio
-set "CMAKE_PATH=%VS_PATH%\Common7\IDE\CommonExtensions\Microsoft\CMake\CMake\bin\cmake.exe"
-
-if not exist "%CMAKE_PATH%" (
-    echo Error: CMake não encontrado no Visual Studio!
-    echo Por favor, certifique-se de que o componente "CMake Tools para Windows" está instalado
-    pause
-    exit /b 1
-)
-
 echo Criando diretório build...
 if not exist build mkdir build
 cd build
 
 echo Configurando CMake...
-"%CMAKE_PATH%" .. -A x64
+cmake .. -A x64
+
+if errorlevel 1 (
+    echo Error: Falha ao executar o CMake!
+    echo Certifique-se de que o CMake está instalado e no PATH do sistema
+    pause
+    exit /b 1
+)
 
 echo Compilando projeto...
-"%CMAKE_PATH%" --build . --config Release
+cmake --build . --config Release
 
 if errorlevel 1 (
     echo Erro na compilação!

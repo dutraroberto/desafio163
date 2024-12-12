@@ -1,99 +1,65 @@
-# Desafio163 - Bitcoin Private Key Finder
+# Desafio163 - Bitcoin Private Key Recovery Tool
 
-Este programa foi desenvolvido para resolver o Desafio163, que consiste em descobrir uma chave privada de Bitcoin parcialmente revelada. O programa utiliza processamento multi-thread e operações criptográficas otimizadas para maximizar a velocidade de busca.
+A high-performance Bitcoin private key finder tool written in C++.
 
-## Características
+## Author
+- **Roberto Dutra**
+  - GitHub: [@dutraroberto](https://github.com/dutraroberto)
 
-- Implementação em C++ com otimizações de baixo nível
-- Suporte completo à curva elíptica secp256k1 do Bitcoin
-- Processamento multi-thread automático
-- Interface de linha de comando com várias opções
-- Modo benchmark para testes de performance
-- Feedback em tempo real do progresso
-- Otimizações criptográficas com cache de objetos
+## Overview
+This tool is designed to recover Bitcoin private keys using advanced cryptographic techniques and optimized multi-threading.
 
-## Requisitos
+## Features
+- Multi-threaded key search with optimized performance
+- Secp256k1 elliptic curve operations
+- Bitcoin address generation
+- Base58 encoding
+- SHA256 and RIPEMD160 hash functions
+- Thread-local context caching
+- Real-time performance metrics
 
-- Visual Studio 2019 ou 2022 com suporte a C++
-- CMake 3.10 ou superior
-- OpenSSL v3.x
+## Requirements
 - Windows 64-bit
+- Visual Studio 2022
+- CMake 3.10+
+- OpenSSL v3.x
 
-## Instalação
+## Building
+1. Install dependencies:
+   - Visual Studio 2022 with C++ development tools
+   - CMake 3.10 or higher
+   - OpenSSL v3.x (Win64 version)
 
-1. Clone o repositório:
-```bash
-git clone https://github.com/dutraroberto/desafio163.git
-cd desafio163
-```
+2. Clone the repository:
+   ```bash
+   git clone https://github.com/dutraroberto/desafio163.git
+   cd desafio163
+   ```
 
-2. Instale as dependências:
-   - Visual Studio 2022 Community Edition com:
-     - "Desenvolvimento para desktop com C++"
-     - "Ferramentas do CMake"
-   - OpenSSL v3.x para Windows 64-bit de: https://slproweb.com/products/Win32OpenSSL.html
+3. Build the project:
+   ```bash
+   build.bat
+   ```
 
-3. Compile o projeto:
-```bash
-build.bat
-```
+## Usage
+The executable will be located in `build/Release/Desafio163.exe`
 
-## Uso
+Command line options:
+- `--address`: Target Bitcoin address
+- `--key`: Partial private key
+- `--threads`: Number of threads to use
+- `--benchmark`: Run performance test
+- `--help`: Show usage information
 
-### Uso Básico
-```bash
-Desafio163.exe
-```
+## License
+This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
 
-### Opções Disponíveis
-```bash
-Desafio163.exe --help
-```
+## Performance Optimizations
+- Multi-threaded search algorithm
+- Thread-local context caching
+- Elliptic curve pre-computation
+- Minimized memory allocations
+- Optimized cryptographic operations
 
-### Especificar Endereço e Chave
-```bash
-Desafio163.exe --address <endereço_bitcoin> --key <chave_parcial>
-```
-
-### Ajustar Número de Threads
-```bash
-Desafio163.exe --threads 8
-```
-
-### Executar Benchmark
-```bash
-Desafio163.exe --benchmark
-```
-
-## Exemplos
-
-Buscar uma chave específica:
-```bash
-Desafio163.exe --address 1Hoyt6UBzwL5vvUSTLMQC2mwvvE5PpeSC --key 4x3x3x4xcxfx6x9xfx3xaxcx5x0x4xbxbx7x2x6x8x7x8xax4x0x8x3x3x3x7x3x
-```
-
-## Estrutura do Projeto
-
-- `src/` - Arquivos fonte
-  - `main.cpp` - Ponto de entrada e interface do usuário
-  - `bitcoin_utils.cpp` - Implementação das operações Bitcoin
-  - `key_finder.cpp` - Lógica de busca da chave
-- `include/` - Arquivos de cabeçalho
-- `CMakeLists.txt` - Configuração do CMake
-- `build.bat` - Script de compilação para Windows
-
-## Otimizações
-
-- Cache de objetos EC_GROUP e BN_CTX
-- Contextos thread-local para operações criptográficas
-- Pré-computação de tabelas para operações na curva elíptica
-- Minimização de alocações de memória
-- Otimização das operações de hash
-
-## Licença
-
-MIT License - veja o arquivo LICENSE para detalhes.
-
-## Autor
-
-Roberto Dutra
+## Contributing
+Contributions are welcome! Please feel free to submit a Pull Request.

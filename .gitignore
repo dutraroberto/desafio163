@@ -1,4 +1,5 @@
-# Build directories
+Nome: OPENSSL_ROOT_DIR
+Valor: C:\Program Files\OpenSSL-Win64# Build directories
 build/
 out/
 Debug/
