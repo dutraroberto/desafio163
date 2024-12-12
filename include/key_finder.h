@@ -26,26 +26,29 @@ public:
     uint64_t getTestsPerSecond() const;
     
 private:
+    void updateStatistics();
+    void foundKey(const std::string& privateKey, const std::string& address);
     void workerThread(size_t threadId);
-    void initLookupTables();
     bool validateKey(const std::string& key);
     void saveCheckpoint(uint64_t position);
     uint64_t loadCheckpoint();
     std::string getTimestamp(bool forFilename = false);
+    uint64_t generateCombination(size_t threadId, uint64_t index);
+    void initLookupTables();
     
     std::string targetAddress_;
     std::string partialKey_;
     std::vector<size_t> xPositions_;
-    std::vector<std::thread> threads_;
     std::atomic<bool> running_;
     std::atomic<bool> paused_;
     std::atomic<uint64_t> testsCount_;
+    std::atomic<uint64_t> peakSpeed_;
+    std::vector<std::thread> threads_;
+    std::chrono::steady_clock::time_point startTime_;
+    std::chrono::steady_clock::time_point lastUpdate_;
+    std::string startTimeStr_;  // Armazena o horário de início formatado
     uint64_t lastTestsCount_;
     uint64_t currentTotal_;
-    std::chrono::steady_clock::time_point lastUpdate_;
-    std::chrono::steady_clock::time_point startTime_;
-    std::string startTimeStr_;  // Armazena o horário de início formatado
-    uint64_t peakSpeed_;
     std::string checkpointFile_;
     std::array<std::string, 256> hexLookup_;
     std::mutex checkpointMutex_;
