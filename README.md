@@ -1,65 +1,65 @@
-# Desafio163 - Bitcoin Private Key Recovery Tool
+# Desafio163 - Ferramenta de Recuperação de Chave Privada Bitcoin
 
-A high-performance Bitcoin private key finder tool written in C++.
+Uma ferramenta de alta performance para encontrar chaves privadas de Bitcoin escrita em C++.
 
-## Author
+## Autor
 - **Roberto Dutra**
   - GitHub: [@dutraroberto](https://github.com/dutraroberto)
 
-## Overview
-This tool is designed to recover Bitcoin private keys using advanced cryptographic techniques and optimized multi-threading.
+## Visão Geral
+Esta ferramenta é projetada para recuperar chaves privadas de Bitcoin usando técnicas criptográficas avançadas e multithreading otimizado.
 
-## Features
-- Multi-threaded key search with optimized performance
-- Secp256k1 elliptic curve operations
-- Bitcoin address generation
-- Base58 encoding
-- SHA256 and RIPEMD160 hash functions
-- Thread-local context caching
-- Real-time performance metrics
+## Funcionalidades
+- Busca de chave multithread com desempenho otimizado
+- Operações de curva elíptica Secp256k1
+- Geração de endereço Bitcoin
+- Codificação Base58
+- Funções hash SHA256 e RIPEMD160
+- Cache de contexto local por thread
+- Métricas de desempenho em tempo real
 
-## Requirements
+## Requisitos
 - Windows 64-bit
 - Visual Studio 2022
 - CMake 3.10+
 - OpenSSL v3.x
 
-## Building
-1. Install dependencies:
-   - Visual Studio 2022 with C++ development tools
-   - CMake 3.10 or higher
-   - OpenSSL v3.x (Win64 version)
+## Compilação
+1. Instale as dependências:
+   - Visual Studio 2022 com ferramentas de desenvolvimento C++
+   - CMake 3.10 ou superior
+   - OpenSSL v3.x (versão Win64)
 
-2. Clone the repository:
+2. Clone o repositório:
    ```bash
    git clone https://github.com/dutraroberto/desafio163.git
    cd desafio163
    ```
 
-3. Build the project:
+3. Compile o projeto:
    ```bash
    build.bat
    ```
 
-## Usage
-The executable will be located in `build/Release/Desafio163.exe`
+## Uso
+O executável estará localizado em `build/Release/Desafio163.exe`
 
-Command line options:
-- `--address`: Target Bitcoin address
-- `--key`: Partial private key
-- `--threads`: Number of threads to use
-- `--benchmark`: Run performance test
-- `--help`: Show usage information
+Opções de linha de comando:
+- `--address`: Endereço Bitcoin alvo
+- `--key`: Chave privada parcial
+- `--threads`: Número de threads a usar
+- `--benchmark`: Executar teste de desempenho
+- `--help`: Mostrar informações de uso
 
-## License
-This project is licensed under the MIT License - see the [LICENSE](LICENSE) file for details.
+## Licença
+Este projeto é licenciado sob a Licença MIT - veja o arquivo [LICENÇA](LICENÇA) para detalhes.
 
-## Performance Optimizations
-- Multi-threaded search algorithm
-- Thread-local context caching
-- Elliptic curve pre-computation
-- Minimized memory allocations
-- Optimized cryptographic operations
+## Otimizações de Desempenho
+- Algoritmo de busca multithread
+- Cache de contexto local por thread
+- Pré-computação de curva elíptica
+- Minimização de alocações de memória
+- Operações criptográficas otimizadas
 
-## Contributing
-Contributions are welcome! Please feel free to submit a Pull Request.
+## Contribuição
+Contribuições são bem-vindas! Por favor, sinta-se à vontade para enviar uma Solicitação de Pull.
