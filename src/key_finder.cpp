@@ -103,6 +103,9 @@ void KeyFinder::workerThread(size_t threadId) {
     std::cout << "  Combinacoes: " << start << " ate " << end << "\n";
     std::cout << "  Total: " << (end - start) << " combinacoes\n\n";
     
+    uint64_t lastReport = 0;
+    const uint64_t reportInterval = 1000000; // Reportar a cada 1 milhão de tentativas
+    
     for (uint64_t i = start; i < end && running_; i++) {
         while (paused_ && running_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
@@ -119,6 +122,16 @@ void KeyFinder::workerThread(size_t threadId) {
             int digit = value & 0xF;
             candidateKey[xPositions[pos]] = hexChars[digit];
             value >>= 4;
+        }
+        
+        // Mostrar progresso a cada reportInterval tentativas
+        if (i - lastReport >= reportInterval) {
+            double progress = static_cast<double>(i - start) / (end - start) * 100.0;
+            std::cout << "Thread " << threadId << ": " 
+                     << (i - start) << "/" << (end - start) 
+                     << " (" << std::fixed << std::setprecision(2) << progress << "%)"
+                     << " - Testando: " << candidateKey << "\r" << std::flush;
+            lastReport = i;
         }
         
         if (validateKey(candidateKey)) {
@@ -174,6 +187,8 @@ void KeyFinder::workerThread(size_t threadId) {
         testsCount_++;
     }
     
+    // Limpar a linha do progresso ao finalizar
+    std::cout << std::string(100, ' ') << "\r" << std::flush;
     std::cout << "Thread " << threadId << " finalizada.\n";
 }
 
@@ -184,19 +199,11 @@ bool KeyFinder::validateKey(const std::string& candidateKey) {
         
         // Verificar se o tamanho está correto (32 bytes)
         if (privateKeyBytes.size() != 32) {
-            std::cout << "Tamanho invalido: " << privateKeyBytes.size() << " bytes\n";
             return false;
         }
         
         // Gerar o endereço Bitcoin
         std::string generatedAddress = BitcoinUtils::privateKeyToAddress(privateKeyBytes);
-        
-        // Debug: sempre imprimir o endereço gerado para a chave
-        std::cout << "Testando:\n";
-        std::cout << "  Chave: " << candidateKey << "\n";
-        std::cout << "  Endereco gerado: " << generatedAddress << "\n";
-        std::cout << "  Endereco alvo:   " << targetAddress_ << "\n";
-        std::cout << "  Resultado: " << (generatedAddress == targetAddress_ ? "IGUAL" : "DIFERENTE") << "\n\n";
         
         // Comparar com o endereço alvo
         bool found = (generatedAddress == targetAddress_);
@@ -209,8 +216,6 @@ bool KeyFinder::validateKey(const std::string& candidateKey) {
         
         return found;
     } catch (const std::exception& e) {
-        std::cout << "Erro ao validar chave: " << e.what() << "\n";
-        std::cout << "Chave tentada: " << candidateKey << "\n\n";
         return false;
     }
 }
