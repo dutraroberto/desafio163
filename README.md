@@ -25,23 +25,35 @@ Este aplicativo é apenas um estudo desenvolvido para ser usado no Desafio163, u
 
 ## Instalação e Execução
 
-Para instalar e executar o aplicativo, siga as etapas abaixo:
+Existem duas formas de executar o programa:
 
-1. **Download e Extração**:
-   - Baixe o arquivo zip do aplicativo a partir do repositório.
+### Método 1: Download do Programa Compilado
+
+1. **Download**:
+   - Baixe o arquivo `desafio163.ZIP` na página de releases do GitHub: [Desafio163 Releases](https://github.com/dutraroberto/desafio163/releases/tag/v0.2-beta)
    - Extraia o conteúdo para um diretório de sua escolha.
 
 2. **Executar o Aplicativo**:
    - Navegue até o diretório extraído.
-   - Execute o arquivo `Desafio163.exe` localizado na pasta `build/Release`. (Ou utilize o atalho no diretório raiz do projeto.)
+   - Execute o arquivo `Desafio163.exe` localizado na pasta `build/Release`.
 
-3. **Configuração de Teste**:
-   - Use a seguinte carteira para testes: `19YW4vDiNZzMzyb1gKYGsqM2KM7bSmEnCH`
-   - Para a chave privada parcial, use: `C17248365038AB57B7E3A92FE375661B35D8147B9C205FA91EDB3AA0x5xBxDxD`
-     - Nota: Você pode alterar os caracteres revelados por "x" para aumentar a dificuldade do desafio.
+### Método 2: Compilação do Projeto
+
+1. **Requisitos**:
+   - Visual Studio 2022
+   - CMake
+
+2. **Preparação**:
+   - Faça um clone do repositório: `git clone https://github.com/dutraroberto/desafio163`
+   - Abra o projeto no Visual Studio Code
+
+3. **Compilação**:
+   - Execute o arquivo `build.bat` para iniciar a compilação.
+   
+   **Nota Importante**: Devido a um erro conhecido, o projeto precisa ser compilado duas vezes para garantir que todos os arquivos necessários sejam gerados corretamente. Se a primeira compilação falhar, execute o `build.bat` novamente.
 
 ## Resultados
-Os resultados serão exibidos no CMD e salvados na pasta `resultados` na raiz do projeto.
+Os resultados serão exibidos no CMD e salvos na pasta `resultados` na raiz do projeto.
 
 ## Problemas Conhecidos
 
