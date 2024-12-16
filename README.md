@@ -1,13 +1,15 @@
 # Desafio163 - Ferramenta de Recuperação de Chave Privada Bitcoin
 
-Uma ferramenta de alta performance para encontrar chaves privadas de Bitcoin escrita em C++.
+Uma ferramenta de alta performance para encontrar a chave privada de Bitcoin do desafio163. O aplicativo foi escrito em C++.
+
+Se você conseguir resolver o desafio163 utilizando este aplicativo, por favor me conte, ficarei feliz em saber.
 
 ## Autor
 - **Roberto Dutra**
   - GitHub: [@dutraroberto](https://github.com/dutraroberto)
 
 ## Visão Geral
-Esta ferramenta é projetada para recuperar chaves privadas de Bitcoin usando técnicas criptográficas avançadas e multithreading otimizado.
+Este aplicativo é apenas um estudo desenvolvido para ser usado no Desafio163, um desafio criado pelo canal "Investidor Internacional". Para mais informações sobre o desafio, visite o canal no YouTube: [Investidor Internacional](https://www.youtube.com/@InvestidorInternacional).
 
 ## Funcionalidades
 - Busca de chave multithread com desempenho otimizado
@@ -19,47 +21,34 @@ Esta ferramenta é projetada para recuperar chaves privadas de Bitcoin usando t�
 - Métricas de desempenho em tempo real
 
 ## Requisitos
-- Windows 64-bit
-- Visual Studio 2022
-- CMake 3.10+
-- OpenSSL v3.x
+- Windows 10 ou superior (64-bit)
 
-## Compilação
-1. Instale as dependências:
-   - Visual Studio 2022 com ferramentas de desenvolvimento C++
-   - CMake 3.10 ou superior
-   - OpenSSL v3.x (versão Win64)
+## Instalação e Execução
 
-2. Clone o repositório:
-   ```bash
-   git clone https://github.com/dutraroberto/desafio163.git
-   cd desafio163
-   ```
+Para instalar e executar o aplicativo, siga as etapas abaixo:
 
-3. Compile o projeto:
-   ```bash
-   build.bat
-   ```
+1. **Download e Extração**:
+   - Baixe o arquivo zip do aplicativo a partir do repositório.
+   - Extraia o conteúdo para um diretório de sua escolha.
 
-## Uso
-O executável estará localizado em `build/Release/Desafio163.exe`
+2. **Executar o Aplicativo**:
+   - Navegue até o diretório extraído.
+   - Execute o arquivo `Desafio163.exe` localizado na pasta `build/Release`. (Ou utilize o atalho no diretório raiz do projeto.)
 
-Opções de linha de comando:
-- `--address`: Endereço Bitcoin alvo
-- `--key`: Chave privada parcial
-- `--threads`: Número de threads a usar
-- `--benchmark`: Executar teste de desempenho
-- `--help`: Mostrar informações de uso
+3. **Configuração de Teste**:
+   - Use a seguinte carteira para testes: `19YW4vDiNZzMzyb1gKYGsqM2KM7bSmEnCH`
+   - Para a chave privada parcial, use: `C17248365038AB57B7E3A92FE375661B35D8147B9C205FA91EDB3AA0x5xBxDxD`
+     - Nota: Você pode alterar os caracteres revelados por "x" para aumentar a dificuldade do desafio.
+
+## Resultados
+Os resultados serão exibidos no CMD e salvados na pasta `resultados` na raiz do projeto.
+
+## Problemas Conhecidos
+
+Durante a primeira tentativa de compilação, pode ocorrer um erro de linkagem devido à falta de alguns arquivos necessários. No entanto, esses arquivos são gerados durante a primeira compilação. Para resolver este problema, basta compilar o projeto novamente, e a compilação será concluída com sucesso.
 
 ## Licença
-Este projeto é licenciado sob a Licença MIT - veja o arquivo [LICENÇA](LICENÇA) para detalhes.
-
-## Otimizações de Desempenho
-- Algoritmo de busca multithread
-- Cache de contexto local por thread
-- Pré-computação de curva elíptica
-- Minimização de alocações de memória
-- Operações criptográficas otimizadas
+Este projeto é de uso exclusivo do Desafio163 - veja o arquivo [LICENÇA](LICENÇA) para detalhes.
 
 ## Contribuição
 Contribuições são bem-vindas! Por favor, sinta-se à vontade para enviar uma Solicitação de Pull.

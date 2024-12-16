@@ -55,6 +55,15 @@ include_directories(third_party/secp256k1/include)
 # Vincular a biblioteca secp256k1
 set(SECP256K1_LIBRARIES ${CMAKE_BINARY_DIR}/third_party/secp256k1/lib/Release/libsecp256k1.lib)
 
+# Configurações para compilação estática
+set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
+
+# Incluir bibliotecas estáticas do OpenSSL
+set(OPENSSL_USE_STATIC_LIBS TRUE)
+
+# Configurar secp256k1 para compilação estática
+set(SECP256K1_BUILD_STATIC ON CACHE BOOL "Build static library" FORCE)
+
 # Add executable
 add_executable(Desafio163 
     src/main.cpp
@@ -76,3 +85,6 @@ target_link_libraries(Desafio163 PRIVATE
     $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>
     ${SECP256K1_LIBRARIES}
 )
+
+# Corrigir caminho da DLL para cópia
+file(COPY "E:/Projetos Windsurf/desafio163/third_party/secp256k1/build/bin/Release/libsecp256k1-5.dll" DESTINATION ${CMAKE_BINARY_DIR}/Release)

@@ -13,6 +13,7 @@
 #include <vector>
 #include <algorithm>
 #include <cstdint>
+#include <omp.h> // Adicionado para suporte a OpenMP
 
 const char HEX_CHARS[] = "0123456789ABCDEF";
 
@@ -35,6 +36,7 @@ std::string KeyFinder::getTimestamp(bool forFilename) {
 
 void KeyFinder::initLookupTables() {
     // Pré-computar todas as combinações possíveis de 2 caracteres hex
+    #pragma omp parallel for
     for (int i = 0; i < 256; ++i) {
         hexLookup_[i] = std::string(1, HEX_CHARS[(i >> 4) & 0xF]) + HEX_CHARS[i & 0xF];
     }
@@ -179,8 +181,11 @@ void KeyFinder::foundKey(const std::string& privateKey, const std::string& addre
     auto bytes = BitcoinUtils::hexStringToBytes(privateKey);
     std::string wif = BitcoinUtils::privateKeyToWIF(bytes);
 
+    // Criar diretório de resultados na raiz do projeto
+    std::filesystem::create_directories("../../resultados");
+
     // Criar nome do arquivo com timestamp
-    std::string filename = "key_found_" + getTimestamp(true) + ".txt";
+    std::string filename = "../../resultados/key_found_" + getTimestamp(true) + ".txt";
 
     // Salvar resultados no arquivo
     std::ofstream outFile(filename);
