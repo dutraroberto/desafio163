@@ -1,36 +1,19 @@
 #include "bitcoin_utils.h"
 #include <openssl/sha.h>
 #include <openssl/ripemd.h>
-#include <openssl/ec.h>
-#include <openssl/obj_mac.h>
+#include <secp256k1.h>
+#include <secp256k1_recovery.h>
 #include <sstream>
 #include <iomanip>
 #include <iostream>
 
+// Initialize secp256k1 context
+static secp256k1_context* secp256k1_ctx = secp256k1_context_create(SECP256K1_CONTEXT_SIGN | SECP256K1_CONTEXT_VERIFY);
+
 class ECCCache {
 public:
-    static EC_GROUP* getGroup() {
-        static EC_GROUP* group = nullptr;
-        if (!group) {
-            group = EC_GROUP_new_by_curve_name(NID_secp256k1);
-            if (!group) {
-                throw std::runtime_error("Failed to create secp256k1 group");
-            }
-            // Pré-computar tabelas para acelerar operações
-            EC_GROUP_precompute_mult(group, nullptr);
-        }
-        return group;
-    }
-
-    static BN_CTX* getBnCtx() {
-        static thread_local BN_CTX* ctx = nullptr;
-        if (!ctx) {
-            ctx = BN_CTX_new();
-            if (!ctx) {
-                throw std::runtime_error("Failed to create BN_CTX");
-            }
-        }
-        return ctx;
+    static secp256k1_context* getContext() {
+        return secp256k1_ctx;
     }
 };
 
@@ -65,54 +48,16 @@ std::string BitcoinUtils::privateKeyToWIF(const std::vector<uint8_t>& privateKey
 }
 
 std::string BitcoinUtils::privateKeyToAddress(const std::vector<uint8_t>& privateKey) {
-    EC_KEY* eckey = EC_KEY_new();
-    if (!eckey) {
-        throw std::runtime_error("Failed to create EC_KEY");
+    secp256k1_pubkey pubkey;
+    if (!secp256k1_ec_pubkey_create(ECCCache::getContext(), &pubkey, privateKey.data())) {
+        throw std::runtime_error("Failed to create public key");
     }
 
-    if (!EC_KEY_set_group(eckey, ECCCache::getGroup())) {
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to set group");
+    std::vector<uint8_t> pub_key_bytes(65);
+    size_t pub_len = 65;
+    if (!secp256k1_ec_pubkey_serialize(ECCCache::getContext(), pub_key_bytes.data(), &pub_len, &pubkey, SECP256K1_EC_UNCOMPRESSED)) {
+        throw std::runtime_error("Failed to serialize public key");
     }
-
-    BIGNUM* bn = BN_bin2bn(privateKey.data(), privateKey.size(), nullptr);
-    if (!bn) {
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to convert private key to BIGNUM");
-    }
-
-    if (!EC_KEY_set_private_key(eckey, bn)) {
-        BN_free(bn);
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to set private key");
-    }
-
-    EC_POINT* pub_key = EC_POINT_new(ECCCache::getGroup());
-    if (!pub_key) {
-        BN_free(bn);
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to create public key point");
-    }
-
-    // Gerar chave pública
-    if (!EC_POINT_mul(ECCCache::getGroup(), pub_key, bn, nullptr, nullptr, ECCCache::getBnCtx())) {
-        EC_POINT_free(pub_key);
-        BN_free(bn);
-        EC_KEY_free(eckey);
-        throw std::runtime_error("Failed to compute public key");
-    }
-
-    // Obter chave pública em formato não comprimido
-    size_t pub_len = EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_UNCOMPRESSED,
-                                      nullptr, 0, ECCCache::getBnCtx());
-    std::vector<uint8_t> pub_key_bytes(pub_len);
-    EC_POINT_point2oct(ECCCache::getGroup(), pub_key, POINT_CONVERSION_UNCOMPRESSED,
-                      pub_key_bytes.data(), pub_len, ECCCache::getBnCtx());
-
-    // Limpar recursos
-    EC_POINT_free(pub_key);
-    BN_free(bn);
-    EC_KEY_free(eckey);
 
     // Hash SHA256
     std::vector<uint8_t> sha256_hash = sha256(pub_key_bytes);

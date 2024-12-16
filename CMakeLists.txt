@@ -46,6 +46,15 @@ if(NOT OpenSSL_FOUND)
     message(FATAL_ERROR "OpenSSL não encontrado. Por favor, instale o OpenSSL v3.x de https://slproweb.com/products/Win32OpenSSL.html")
 endif()
 
+# Adicionar a biblioteca secp256k1
+add_subdirectory(third_party/secp256k1)
+
+# Incluir diretórios
+include_directories(third_party/secp256k1/include)
+
+# Vincular a biblioteca secp256k1
+set(SECP256K1_LIBRARIES ${CMAKE_BINARY_DIR}/third_party/secp256k1/lib/Release/libsecp256k1.lib)
+
 # Add executable
 add_executable(Desafio163 
     src/main.cpp
@@ -57,6 +66,7 @@ add_executable(Desafio163
 target_include_directories(Desafio163 PRIVATE 
     ${OPENSSL_INCLUDE_DIR}
     ${CMAKE_SOURCE_DIR}/include
+    third_party/secp256k1/include
 )
 
 # Link libraries
@@ -64,4 +74,5 @@ target_link_libraries(Desafio163 PRIVATE
     OpenSSL::SSL 
     OpenSSL::Crypto
     $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>
+    ${SECP256K1_LIBRARIES}
 )
