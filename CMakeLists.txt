@@ -46,23 +46,18 @@ if(NOT OpenSSL_FOUND)
     message(FATAL_ERROR "OpenSSL não encontrado. Por favor, instale o OpenSSL v3.x de https://slproweb.com/products/Win32OpenSSL.html")
 endif()
 
-# Adicionar a biblioteca secp256k1
+# Adicionar e compilar a biblioteca secp256k1
+set(SECP256K1_BUILD_SHARED ON CACHE BOOL "Build shared library")
+set(SECP256K1_BUILD_STATIC OFF CACHE BOOL "Disable static library")
+set(ENABLE_MODULE_RECOVERY ON CACHE BOOL "Enable recovery module")
+
 add_subdirectory(third_party/secp256k1)
 
 # Incluir diretórios
 include_directories(third_party/secp256k1/include)
 
-# Vincular a biblioteca secp256k1
-set(SECP256K1_LIBRARIES ${CMAKE_BINARY_DIR}/third_party/secp256k1/lib/Release/libsecp256k1.lib)
-
-# Configurações para compilação estática
-set(CMAKE_CXX_FLAGS_RELEASE "${CMAKE_CXX_FLAGS_RELEASE} /MT")
-
-# Incluir bibliotecas estáticas do OpenSSL
-set(OPENSSL_USE_STATIC_LIBS TRUE)
-
-# Configurar secp256k1 para compilação estática
-set(SECP256K1_BUILD_STATIC ON CACHE BOOL "Build static library" FORCE)
+# Configurar caminho para a biblioteca gerada
+set(SECP256K1_LIBRARIES third_party/secp256k1/src/secp256k1-shared.lib)
 
 # Add executable
 add_executable(Desafio163 
@@ -83,8 +78,11 @@ target_link_libraries(Desafio163 PRIVATE
     OpenSSL::SSL 
     OpenSSL::Crypto
     $<$<BOOL:${OpenMP_CXX_FOUND}>:OpenMP::OpenMP_CXX>
-    ${SECP256K1_LIBRARIES}
+    secp256k1
 )
 
-# Corrigir caminho da DLL para cópia
-file(COPY "E:/Projetos Windsurf/desafio163/third_party/secp256k1/build/bin/Release/libsecp256k1-5.dll" DESTINATION ${CMAKE_BINARY_DIR}/Release)
+# Copiar DLL da biblioteca secp256k1 para o diretório bin
+add_custom_command(TARGET Desafio163 POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_if_different
+        $<TARGET_FILE:secp256k1>
+        $<TARGET_FILE_DIR:Desafio163>)

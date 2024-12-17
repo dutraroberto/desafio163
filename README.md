@@ -8,6 +8,10 @@ Desenvolvido por:
 - **Roberto Dutra / ChatGPT**
   - GitHub: [@dutraroberto](https://github.com/dutraroberto)
 
+Colaboradores:
+- **JefinhoCPS**
+  - GitHub: [@JefinhoCPS](https://github.com/jmr2704)
+
 ## Instalação e Execução
 
 Existem duas formas de executar o programa:
