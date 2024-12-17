@@ -121,6 +121,14 @@ int main() {
     displayCommands();
     std::cout << "\n";
     
+    size_t hiddenChars = std::count(partialKey.begin(), partialKey.end(), 'x') +
+                         std::count(partialKey.begin(), partialKey.end(), 'X');
+    uint64_t possibleCombinations = 1ULL << (hiddenChars * 4);
+
+    std::cout << "Hidden Characters: " << hiddenChars << "\n";
+    std::cout << "Possible Combinations: " << possibleCombinations << "\n";
+    std::cout << "=====================" << "\n\n";
+
     std::cout << "Starting search...\n";
     std::cout << "==================\n\n";
     

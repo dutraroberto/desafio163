@@ -19,24 +19,26 @@ const char HEX_CHARS[] = "0123456789ABCDEF";
 
 // Definição da constante de classe
 constexpr char KeyFinder::HEX_CHARS[];
+std::mutex outputMutex;
 
 std::string KeyFinder::getTimestamp(bool forFilename) {
     auto now = std::chrono::system_clock::now();
     auto time = std::chrono::system_clock::to_time_t(now);
     std::stringstream ss;
-    
+
     if (forFilename) {
         ss << std::put_time(std::localtime(&time), "%Y%m%d_%H%M%S");
-    } else {
+    }
+    else {
         ss << std::put_time(std::localtime(&time), "%Y-%m-%d %H:%M:%S");
     }
-    
+
     return ss.str();
 }
 
 void KeyFinder::initLookupTables() {
     // Pré-computar todas as combinações possíveis de 2 caracteres hex
-    #pragma omp parallel for
+#pragma omp parallel for
     for (int i = 0; i < 256; ++i) {
         hexLookup_[i] = std::string(1, HEX_CHARS[(i >> 4) & 0xF]) + HEX_CHARS[i & 0xF];
     }
@@ -55,7 +57,7 @@ KeyFinder::KeyFinder(const std::string& targetAddress, const std::string& partia
     , startTimeStr_(getTimestamp(false))  // Armazena o horário de início
     , peakSpeed_(0)
     , checkpointFile_("checkpoint.dat") {
-    
+
     // Inicializar posições dos X's
     for (size_t i = 0; i < partialKey_.length(); i++) {
         if (partialKey_[i] == 'x' || partialKey_[i] == 'X') {
@@ -65,7 +67,7 @@ KeyFinder::KeyFinder(const std::string& targetAddress, const std::string& partia
 
     // Inicializar lookup tables
     initLookupTables();
-    
+
     // Inicializar threads
     threads_.resize(threadCount);
 }
@@ -76,7 +78,7 @@ KeyFinder::~KeyFinder() {
 
 void KeyFinder::start() {
     if (running_) return;
-    
+
     running_ = true;
     paused_ = false;
     testsCount_.store(0, std::memory_order_relaxed);
@@ -94,14 +96,14 @@ void KeyFinder::start() {
 }
 
 void KeyFinder::stop() {
-    if (!running_) return;
     running_ = false;
-    
+
     for (auto& thread : threads_) {
         if (thread.joinable()) {
             thread.join();
         }
     }
+    
 }
 
 void KeyFinder::pause() {
@@ -116,7 +118,7 @@ uint64_t KeyFinder::getTestsPerSecond() const {
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::seconds>(now - lastUpdate_).count();
     if (elapsed == 0) return 0;
-    
+
     uint64_t current = testsCount_.load(std::memory_order_relaxed);
     return (current - lastTestsCount_) / elapsed;
 }
@@ -144,6 +146,7 @@ uint64_t KeyFinder::loadCheckpoint() {
 }
 
 void KeyFinder::updateStatistics() {
+    std::lock_guard<std::mutex> lock(outputMutex);  // Bloqueia o acesso ao terminal
     auto now = std::chrono::steady_clock::now();
     auto elapsed = std::chrono::duration_cast<std::chrono::milliseconds>(now - lastUpdate_).count();
 
@@ -152,26 +155,22 @@ void KeyFinder::updateStatistics() {
         double totalElapsed = std::chrono::duration_cast<std::chrono::seconds>(now - startTime_).count();
         uint64_t averageSpeed = totalElapsed > 0 ? currentTotal / totalElapsed : 0;
 
-        // Move o cursor para o início da linha e limpa
-        std::cout << "\r\033[K";  // \r move para o início, \033[K limpa até o fim da linha
-        
-        // Atualiza estatísticas com design melhorado e caixa maior
-        std::cout << "⚡ Search Progress ⚡\n";  // Sem efeito de negrito
+        std::cout << "\033[2J\033[H";
+
+        std::cout << "⚡ Search Progress ⚡\n";
         std::cout << "┌────────────────────────────────────────────────┐\n";
-        std::cout << "│ Speed: " << std::setw(20) << averageSpeed << " keys/s          │\n";
-        std::cout << "│ Keys:  " << std::setw(20) << currentTotal << "                │\n";
-        std::cout << "│ Time:  " << std::setw(20) << totalElapsed << " seconds          │\n";
-        std::cout << "└────────────────────────────────────────────────┘";
-        
-        // Move o cursor de volta para a linha inicial
-        std::cout << "\033[5A";  // Move 5 linhas para cima
-        
+        std::cout << "│ Speed: " << std::setw(20) << averageSpeed << " keys/s             │\n";
+        std::cout << "│ Keys:  " << std::setw(20) << currentTotal << "                    │\n";
+        std::cout << "│ Time:  " << std::setw(20) << totalElapsed << " seconds            │\n";
+        std::cout << "└────────────────────────────────────────────────┘\n";
+
         std::cout.flush();
         lastUpdate_ = now;
     }
 }
 
 void KeyFinder::foundKey(const std::string& privateKey, const std::string& address) {
+    
     auto endTime = std::chrono::steady_clock::now();
     auto totalElapsed = std::chrono::duration_cast<std::chrono::seconds>(endTime - startTime_).count();
     uint64_t totalKeys = testsCount_.load(std::memory_order_relaxed);
@@ -204,35 +203,34 @@ void KeyFinder::foundKey(const std::string& privateKey, const std::string& addre
     outFile.close();
 
     // Limpar a tela de estatísticas
-    std::cout << "\r\033[K\033[4A\033[K\033[K\033[K\033[K\033[K";
-    
+    std::cout << "\033[2J\033[H";
+
     // Exibir resultados na tela com título verde e caixa maior
     std::cout << "\n\n\033[32m🎉 Key Found! 🎉\033[0m\n\n";
-    std::cout << "┌──────────────────────────────────────────────────────────────────────────┐\n";
-    std::cout << "│                     \033[32m🔑 Key Details 🔑\033[0m                                    │\n";
-    std::cout << "├──────────────────────────────────────────────────────────────────────────┤\n";
-    std::cout << "│ Private Key (HEX):                                                       │\n";
-    std::cout << "│ " << std::left << std::setw(72) << privateKey << " │\n";
-    std::cout << "│                                                                          │\n";
-    std::cout << "│ Private Key (WIF):                                                      │\n";
-    std::cout << "│ " << std::left << std::setw(72) << wif << " │\n";
-    std::cout << "│                                                                          │\n";
-    std::cout << "│ Address:                                                                │\n";
-    std::cout << "│ " << std::left << std::setw(72) << address << " │\n";
-    std::cout << "├──────────────────────────────────────────────────────────────────────────┤\n";
-    std::cout << "│                          Search Statistics                               │\n";
-    std::cout << "├──────────────────────────────────────────────────────────────────────────┤\n";
-    std::cout << "│ Start Time:        " << std::left << std::setw(55) << startTimeStr_ << " │\n";
-    std::cout << "│ End Time:          " << std::left << std::setw(55) << getTimestamp(false) << " │\n";
-    std::cout << "│ Total Keys Tested: " << std::left << std::setw(55) << totalKeys << " │\n";
-    std::cout << "│ Average Speed:     " << std::left << std::setw(53) << averageSpeed << " k/s │\n";
-    std::cout << "│ Total Time:        " << std::left << std::setw(53) << totalElapsed << " s │\n";
-    std::cout << "└──────────────────────────────────────────────────────────────────────────┘\n\n";
+    std::cout << "┌─────────────────────────────────────────────────────────────────────────────┐\n";
+    std::cout << "│                     \033[32m🔑 Key Details 🔑\033[0m                                       │\n";
+    std::cout << "├─────────────────────────────────────────────────────────────────────────────┤\n";
+    std::cout << "│ Private Key (HEX):                                                          │\n";
+    std::cout << "│ " << std::left << std::setw(72) << privateKey << "    │\n";
+    std::cout << "│                                                                             │\n";
+    std::cout << "│ Private Key (WIF):                                                          │\n";
+    std::cout << "│ " << std::left << std::setw(72) << wif << "    │\n";
+    std::cout << "│                                                                             │\n";
+    std::cout << "│ Address:                                                                    │\n";
+    std::cout << "│ " << std::left << std::setw(72) << address << "    │\n";
+    std::cout << "├─────────────────────────────────────────────────────────────────────────────┤\n";
+    std::cout << "│                          Search Statistics                                  │\n";
+    std::cout << "├─────────────────────────────────────────────────────────────────────────────┤\n";
+    std::cout << "│ Start Time:        " << std::left << std::setw(55) << startTimeStr_ << "  │\n";
+    std::cout << "│ End Time:          " << std::left << std::setw(55) << getTimestamp(false) << "  │\n";
+    std::cout << "│ Total Keys Tested: " << std::left << std::setw(55) << totalKeys << "  │\n";
+    std::cout << "│ Average Speed:     " << std::left << std::setw(53) << averageSpeed << " k/s│\n";
+    std::cout << "│ Total Time:        " << std::left << std::setw(53) << totalElapsed << " s  │\n";
+    std::cout << "└─────────────────────────────────────────────────────────────────────────────┘\n\n";
     std::cout << "Results saved to: " << filename << "\n";
     std::cout << "\nPress Enter to exit...\n";
     
     std::cin.get();
-    stop();
 }
 
 void KeyFinder::workerThread(size_t threadId) {
@@ -249,6 +247,9 @@ void KeyFinder::workerThread(size_t threadId) {
     auto lastStatsUpdate = std::chrono::steady_clock::now();
 
     for (uint64_t i = startIndex; running_ && i < endIndex; i++) {
+
+        if (!running_) break;  // Verificação imediata
+
         if (paused_) {
             std::this_thread::sleep_for(std::chrono::milliseconds(100));
             continue;
@@ -257,7 +258,7 @@ void KeyFinder::workerThread(size_t threadId) {
         // Gerar chave candidata
         std::string candidate = partialKey_;
         uint64_t combination = i;
-        
+
         for (size_t pos : xPositions_) {
             uint8_t nibble = combination & 0xF;
             candidate[pos] = HEX_CHARS[nibble];
@@ -272,17 +273,14 @@ void KeyFinder::workerThread(size_t threadId) {
             for (const auto& key : localBatchCandidates) {
                 if (validateKey(key)) {
                     foundKey = key;
-                    keyFound = true;
+                    running_ = false;  // Atualiza running_ global
+                    std::string address = BitcoinUtils::privateKeyToAddress(BitcoinUtils::hexStringToBytes(foundKey));
+                    this->foundKey(foundKey, address);
                     break;
                 }
             }
 
             localBatchCandidates.clear();
-
-            // Se encontrou a chave, sair do loop
-            if (keyFound) {
-                break;
-            }
 
             // Atualizar estatísticas
             currentTotal = testsCount_.load(std::memory_order_relaxed);
@@ -292,29 +290,30 @@ void KeyFinder::workerThread(size_t threadId) {
                 updateStatistics();
                 lastStatsUpdate = now;
             }
+
         }
     }
 
     // Se encontrou a chave, processar o resultado
     if (keyFound) {
-        std::string address = BitcoinUtils::privateKeyToAddress(BitcoinUtils::hexStringToBytes(foundKey));
-        this->foundKey(foundKey, address);
+        
     }
+    
 }
 
 bool KeyFinder::validateKey(const std::string& candidateKey) {
     try {
         // Converter a chave para bytes
         auto bytes = BitcoinUtils::hexStringToBytes(candidateKey);
-        
+
         // Gerar endereço Bitcoin
         std::string address = BitcoinUtils::privateKeyToAddress(bytes);
-        
+
         // Verificar se o endereço corresponde ao alvo
         if (address == targetAddress_) {
             return true;
         }
-        
+
         return false;
     }
     catch (const std::exception& e) {
